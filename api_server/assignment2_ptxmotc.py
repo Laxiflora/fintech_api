@@ -37,15 +37,11 @@ class Auth():
             'Accept - Encoding': 'gzip'
         }
 
-
-if __name__ == '__main__':
-    a = Auth(app_id, app_key)
+def getNearestStation():
     response = request('get', 'https://ptx.transportdata.tw/MOTC/v3/Rail/TRA/Station?$format=JSON', headers= a.get_auth_header())
     data = json.loads(response.text)
-    #pprint(data)
     near = {"name": "undefined" , "length" : 999999}
     current_loc = geocoder.ip('me').latlng
-#    pprint(data['Stations'])
     for station in data['Stations']:
         lat = station['StationPosition']['PositionLat']
         lon = station['StationPosition']['PositionLon']
@@ -54,23 +50,30 @@ if __name__ == '__main__':
             near['length'] = result
             near['name'] = station['StationName']['Zh_tw']
             near['id'] = station['StationID']
+    return near
 
 
-    response = request('get' , ('https://ptx.transportdata.tw/MOTC/v3/Rail/TRA/DailyStationTimetable/Today/Station/'+near['id']), headers= a.get_auth_header())
+def getNextTrain(stationID):
+    response = request('get' , ('https://ptx.transportdata.tw/MOTC/v3/Rail/TRA/DailyStationTimetable/Today/Station/'+stationID), headers= a.get_auth_header())
     data = json.loads(response.text)
     countdown = 999999
     trainTypeID=""
     now_time_hr = datetime.datetime.now().timetuple().tm_hour
     now_time_min = datetime.datetime.now().timetuple().tm_min
     for stop in data['StationTimetables'][0]['TimeTables']:
-        stop_time_hr = int(stop['ArrivalTime'][0]+stop['ArrivalTime'][1]) - now_time_hr  #"05:00"
-        stop_time = (int(stop['ArrivalTime'][3]+stop['ArrivalTime'][4]) - now_time_min )+ stop_time_hr*60
+        stop_time = ( int(stop['ArrivalTime'][3:5]) - now_time_min ) + (int(stop['ArrivalTime'][0:2]) - now_time_hr)*60
         if(countdown > stop_time and stop_time > 0):
             countdown = stop_time
             trainTypeID = stop['TrainTypeID']
             arrive_time= stop['ArrivalTime']
-    
-    
-print("現在時刻 : {}".format( format_date_time(mktime(datetime.datetime.now().timetuple()))   ))
-print("距離你最近的火車站為 : {}".format(near['name']))
-print("最近到達{}站的車次為{},該車次到達時間為{},你尚有{}秒".format(near['name'],trainTypeID,arrive_time,countdown*60))
+    return (trainTypeID,arrive_time,countdown)
+
+
+
+if __name__ == '__main__':
+    a = Auth(app_id, app_key)
+    nearestStation = getNearestStation()
+    trainTypeID,nextArriveTime,timeLeft = getNextTrain(nearestStation['id'])
+    print("現在時刻 : {}".format( format_date_time(mktime(datetime.datetime.now().timetuple()))   ))
+    print("距離你最近的火車站為 : {}".format(nearestStation['name']))
+    print("最近到達{}站的車次為{},該車次到達時間為{},你尚有{}秒".format(nearestStation['name'],trainTypeID,nextArriveTime,timeLeft*60))
