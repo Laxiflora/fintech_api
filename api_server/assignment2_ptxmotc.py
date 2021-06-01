@@ -64,7 +64,7 @@ def getNextTrain(stationID):
         stop_time = ( int(stop['ArrivalTime'][3:5]) - now_time_min ) + (int(stop['ArrivalTime'][0:2]) - now_time_hr)*60
         if(countdown > stop_time and stop_time > 0):
             countdown = stop_time
-            trainTypeID = stop['TrainTypeID']
+            trainTypeID = stop['TrainNo']
             arrive_time= stop['ArrivalTime']
     return (trainTypeID,arrive_time,countdown)
 
